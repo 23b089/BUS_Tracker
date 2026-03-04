@@ -12,9 +12,13 @@ const BusLiveMap = dynamic(() => import("@/components/BusLiveMap"), {
   loading: () => <p className="busmap-loading">Loading map...</p>,
 });
 
+const LinearRouteMap = dynamic(() => import("@/components/LinearRouteMap"), {
+  ssr: false,
+});
+
 const ROUTE_STOPS = {
   payyanurViaTaliparamba: [
-    { name: "Payyanur", lat: 12.1044, lng: 75.2025 },
+    { name: "Payyanur", lat: 12.106784790108003, lng: 75.21030675840721 },
     {name:"Bypass road stop", lat: 12.11351613506258, lng: 75.21043618869865},
     { name: "Perumba", lat: 12.111626988027025, lng: 75.21924800410231},
     {name:"Payyanur college stop", lat: 12.101188992612682, lng: 75.22995782962082},
@@ -255,6 +259,12 @@ export default function BusMapPage() {
           busPosition={busLiveData}
           destination={selectedLocation || { lat: 11.8745, lng: 75.3704, name: "College" }}
           routeStops={currentRouteStops}
+        />
+
+        <LinearRouteMap
+          busPosition={busLiveData}
+          routeStops={currentRouteStops}
+          selectedStop={selectedLocation}
         />
       </section>
     </main>

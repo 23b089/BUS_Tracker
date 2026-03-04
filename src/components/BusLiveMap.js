@@ -1,8 +1,54 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap, Polyline } from "react-leaflet";
+
+// Component to fetch and display actual road route
+function RoadRoutePolyline({ routeStops }) {
+  const [roadPath, setRoadPath] = useState([]);
+  const map = useMap();
+
+  useEffect(() => {
+    if (!routeStops || routeStops.length < 2) return;
+
+    // Build OSRM API URL with all stops
+    const coordinates = routeStops
+      .filter(stop => Number.isFinite(stop.lat) && Number.isFinite(stop.lng))
+      .map(stop => `${stop.lng},${stop.lat}`)
+      .join(';');
+
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
+
+    fetch(osrmUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data.code === 'Ok' && data.routes && data.routes[0]) {
+          const coords = data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+          setRoadPath(coords);
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching route:', err);
+        // Fallback to straight lines if routing fails
+        const fallbackPath = routeStops
+          .filter(stop => Number.isFinite(stop.lat) && Number.isFinite(stop.lng))
+          .map(stop => [stop.lat, stop.lng]);
+        setRoadPath(fallbackPath);
+      });
+  }, [routeStops, map]);
+
+  if (roadPath.length === 0) return null;
+
+  return (
+    <Polyline 
+      positions={roadPath} 
+      color="#3b82f6" 
+      weight={4} 
+      opacity={0.7}
+    />
+  );
+}
 
 const busIcon = L.divIcon({
   html: `
@@ -10,9 +56,9 @@ const busIcon = L.divIcon({
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 45px;
-      height: 45px;
-      background: #ef4444;
+      width: 25px;
+      height: 25px;
+      background: #141601;
       border: 3px solid white;
       border-radius: 50%;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px #ef4444;
@@ -85,11 +131,6 @@ export default function BusLiveMap({ busPosition, destination, routeStops }) {
     return [11.8745, 75.3704];
   }, [busPosition]);
 
-  const routePath = useMemo(() => {
-    if (!routeStops || routeStops.length === 0) return [];
-    return routeStops.map((stop) => [stop.lat, stop.lng]);
-  }, [routeStops]);
-
   return (
     <div className="busmap-map-wrap">
       <MapContainer center={initialCenter} zoom={14} className="busmap-map">
@@ -97,6 +138,8 @@ export default function BusLiveMap({ busPosition, destination, routeStops }) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
+        <RoadRoutePolyline routeStops={routeStops} />
 
         {routeStops &&
           routeStops.map((stop) =>

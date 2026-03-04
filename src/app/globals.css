@@ -875,6 +875,252 @@ body {
   cursor: pointer !important;
 }
 
+/* Linear Route Map */
+.linear-route-map {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 2.5rem 1.5rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  margin-top: 1.5rem;
+}
+
+.off-route-notice {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.route-info-text {
+  text-align: center;
+  color: var(--gray-600);
+  font-size: 0.9rem;
+  padding: 1rem;
+}
+
+.route-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.route-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin: 0;
+}
+
+.route-percentage {
+  background: linear-gradient(to right, #3b82f6, #2563eb);
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.linear-route-container {
+  position: relative;
+  width: 100%;
+  min-height: 120px;
+}
+
+.route-line {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.route-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(to right, #3b82f6, #2563eb);
+  border-radius: 10px;
+  transition: width 0.5s ease-in-out;
+}
+
+.stops-container {
+  position: relative;
+  width: 100%;
+  height: 120px;
+}
+
+.stop-marker {
+  position: absolute;
+  top: 25px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+.stop-dot {
+  width: 16px;
+  height: 16px;
+  background: white;
+  border: 3px solid #3b82f6;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.stop-marker:hover .stop-dot {
+  transform: scale(1.3);
+  border-color: #2563eb;
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.4);
+}
+
+.stop-marker.selected .stop-dot {
+  background: #3b82f6;
+  border-color: #1e40af;
+  transform: scale(1.2);
+}
+
+.stop-label {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  white-space: nowrap;
+  text-align: center;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.bus-marker-linear {
+  position: absolute;
+  top: 18px;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: left 0.5s ease-in-out;
+}
+
+.bus-icon-linear {
+  width: 50px;
+  height: 50px;
+  background: #ef4444;
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  animation: busFloat 2s ease-in-out infinite;
+}
+
+.bus-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50px;
+  height: 50px;
+  background: #ef4444;
+  border-radius: 50%;
+  opacity: 0;
+  animation: pulse 2s ease-out infinite;
+}
+
+@keyframes busFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .linear-route-map {
+    padding: 2rem 1rem;
+  }
+  
+  .route-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  
+  .route-title {
+    font-size: 1rem;
+  }
+  
+  .linear-route-container {
+    min-height: 140px;
+  }
+  
+  .stops-container {
+    height: 140px;
+  }
+  
+  .stop-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    max-width: 70px;
+    white-space: normal;
+    line-height: 1.2;
+    word-break: break-word;
+    padding: 0.3rem 0.5rem;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+  
+  .stop-dot {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+  }
+  
+  .bus-icon-linear {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+  }
+  
+  .bus-pulse {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 @media (max-width: 640px) {
   .busmap-map-wrap {
     height: 380px;
