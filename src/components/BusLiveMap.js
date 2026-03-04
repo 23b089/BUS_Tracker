@@ -2,14 +2,30 @@
 
 import { useEffect, useMemo } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, useMap, Polyline } from "react-leaflet";
 
-const busIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
+const busIcon = L.divIcon({
+  html: `
+    <div style="
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 45px;
+      height: 45px;
+      background: #ef4444;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px #ef4444;
+      font-size: 24px;
+      z-index: 9999;
+    ">
+      🚌
+    </div>
+  `,
+  iconSize: [45, 45],
+  iconAnchor: [22, 22],
+  popupAnchor: [0, -25],
+  className: "bus-icon-marker",
 });
 
 const destinationIcon = new L.Icon({
@@ -21,19 +37,46 @@ const destinationIcon = new L.Icon({
   className: "destination-pin",
 });
 
-function MapAutoCenter({ center }) {
+const stopIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [30, 45],
+  iconAnchor: [15, 45],
+  popupAnchor: [0, -40],
+  className: "stop-icon-marker",
+});
+
+function MapFitBounds({ busPosition, routeStops }) {
   const map = useMap();
 
   useEffect(() => {
-    if (Number.isFinite(center?.lat) && Number.isFinite(center?.lng)) {
-      map.setView([center.lat, center.lng], map.getZoom(), { animate: true });
+    if (!busPosition) return;
+
+    const allPoints = [];
+    
+    if (Number.isFinite(busPosition?.lat) && Number.isFinite(busPosition?.lng)) {
+      allPoints.push([busPosition.lat, busPosition.lng]);
     }
-  }, [center, map]);
+
+    if (routeStops && routeStops.length > 0) {
+      routeStops.forEach((stop) => {
+        if (Number.isFinite(stop.lat) && Number.isFinite(stop.lng)) {
+          allPoints.push([stop.lat, stop.lng]);
+        }
+      });
+    }
+
+    if (allPoints.length > 0) {
+      const bounds = L.latLngBounds(allPoints);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [busPosition, routeStops, map]);
 
   return null;
 }
 
-export default function BusLiveMap({ busPosition, destination }) {
+export default function BusLiveMap({ busPosition, destination, routeStops }) {
   const initialCenter = useMemo(() => {
     if (Number.isFinite(busPosition?.lat) && Number.isFinite(busPosition?.lng)) {
       return [busPosition.lat, busPosition.lng];
@@ -41,6 +84,11 @@ export default function BusLiveMap({ busPosition, destination }) {
 
     return [11.8745, 75.3704];
   }, [busPosition]);
+
+  const routePath = useMemo(() => {
+    if (!routeStops || routeStops.length === 0) return [];
+    return routeStops.map((stop) => [stop.lat, stop.lng]);
+  }, [routeStops]);
 
   return (
     <div className="busmap-map-wrap">
@@ -50,8 +98,25 @@ export default function BusLiveMap({ busPosition, destination }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
+        {routeStops &&
+          routeStops.map((stop) =>
+            Number.isFinite(stop.lat) && Number.isFinite(stop.lng) ? (
+              <Marker key={stop.name} position={[stop.lat, stop.lng]} icon={stopIcon}>
+                <Popup>
+                  <div style={{ textAlign: "center", fontWeight: "bold" }}>
+                    {stop.name}
+                    <br />
+                    <span style={{ fontSize: "0.85rem", color: "#666" }}>
+                      {stop.lat.toFixed(6)}, {stop.lng.toFixed(6)}
+                    </span>
+                  </div>
+                </Popup>
+              </Marker>
+            ) : null
+          )}
+
         {Number.isFinite(busPosition?.lat) && Number.isFinite(busPosition?.lng) && (
-          <Marker position={[busPosition.lat, busPosition.lng]} icon={busIcon}>
+          <Marker position={[busPosition.lat, busPosition.lng]} icon={busIcon} pane="markerPane" zIndexOffset={1000}>
             <Popup>
               Live Bus Position
               <br />
@@ -74,7 +139,7 @@ export default function BusLiveMap({ busPosition, destination }) {
           </Marker>
         )}
 
-        <MapAutoCenter center={busPosition} />
+        <MapFitBounds busPosition={busPosition} routeStops={routeStops} />
       </MapContainer>
     </div>
   );

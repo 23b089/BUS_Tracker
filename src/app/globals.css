@@ -765,6 +765,35 @@ body {
   margin: 0;
 }
 
+.busmap-view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.busmap-view-btn {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 0.5rem;
+  background: white;
+  color: var(--gray-700);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.busmap-view-btn:hover {
+  border-color: var(--blue-600);
+  color: var(--blue-600);
+}
+
+.busmap-view-btn.active {
+  background: var(--blue-600);
+  color: white;
+  border-color: var(--blue-600);
+}
+
 .busmap-stats-grid {
   display: grid;
   gap: 0.8rem;
@@ -823,6 +852,27 @@ body {
 .busmap-meta {
   font-size: 0.85rem;
   color: var(--gray-600);
+}
+
+.stop-icon-marker {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) !important;
+}
+
+.bus-icon-marker {
+  z-index: 9999 !important;
+}
+
+.bus-icon-marker .leaflet-marker-icon {
+  z-index: 9999 !important;
+}
+
+.leaflet-popup-content {
+  font-family: Arial, sans-serif;
+  max-width: 200px;
+}
+
+.leaflet-marker-icon {
+  cursor: pointer !important;
 }
 
 @media (max-width: 640px) {
