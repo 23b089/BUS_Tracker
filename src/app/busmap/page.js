@@ -23,7 +23,7 @@ const ROUTE_STOPS = {
   payyanurViaTaliparamba: [
     { name: "Payyanur", lat: 12.106784790108003, lng: 75.21030675840721 },
     {name:"Bypass road stop", lat: 12.11351613506258, lng: 75.21043618869865},
-    { name: "Perumba", lat: 12.111626988027025, lng: 75.21924800410231},
+    { name:"Perumba", lat: 12.111626988027025, lng: 75.21924800410231},
     {name:"Payyanur college stop", lat: 12.101188992612682, lng: 75.22995782962082},
     {name:"Ezhilode", lat: 12.092453748656329, lng: 75.24806314053399},
     {name:"Plathara", lat: 12.08014701482077, lng: 75.26306381376685},
@@ -36,7 +36,7 @@ const ROUTE_STOPS = {
     { name:"Taliparamba", lat: 12.03616141329985, lng: 75.36020462074428},
     {name:"kuttikkol", lat: 12.018436491728679, lng: 75.36934147817087},
     {name:"bakkalam", lat: 11.997059731844809, lng: 75.37077729639444},
-    {name:"GCEK ", lat: 11.986166453917972, lng: 75.38159230420446}
+    {name:"GCEK ", lat: 11.986166453917972, lng: 75.38159230420446},
   ],
 
   payyanurViaPazhangadi: [
@@ -45,18 +45,18 @@ const ROUTE_STOPS = {
     {name:"Ezhilode", lat: 12.092453748656329, lng: 75.24806314053399},
     { name: "Pazhangadi", lat: 12.0248, lng: 75.2621 },
     { name: "Valapattanam", lat: 11.9331, lng: 75.3471 },
-    { name: "GCEK Main Gate", lat: 11.8745, lng: 75.3704 },
+    {name:"GCEK ", lat: 11.986166453917972, lng: 75.38159230420446},
   ],
 
   kannurViaKambil: [
     { name: "Kannur", lat: 11.8745, lng: 75.3704 },
     { name: "Narath", lat: 11.9373, lng: 75.4292 },
-    { name: "GCEK Main Gate", lat: 11.8745, lng: 75.3704 },
+     {name:"GCEK ", lat: 11.986166453917972, lng: 75.38159230420446},
   ],
   kannurViaValapattanam: [
     { name: "Kannur", lat: 11.8745, lng: 75.3704 },
     { name: "Valapattanam", lat: 11.9331, lng: 75.3471 },
-    { name: "GCEK Main Gate", lat: 11.8745, lng: 75.3704 },
+     {name:"GCEK ", lat: 11.986166453917972, lng: 75.38159230420446},
   ],
 };
 
@@ -64,7 +64,7 @@ const BUS_ROUTE_KEY = {
   1: "kannurViaValapattanam",
   2: "payyanurViaTaliparamba",
   3: "kannurViaKambil",
-  8: "payyanurViaPazhangadi",
+  8: "payyanurViaTaliparamba",
   9: "payyanurViaTaliparamba",
   10: "kannurViaValapattanam",
 };
