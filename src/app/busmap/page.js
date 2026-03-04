@@ -203,10 +203,20 @@ function BusMapContent() {
     ? haversineDistanceKm({ lat: busLiveData.lat, lng: busLiveData.lng }, selectedLocation)
     : null;
 
+  // Minimum speed threshold to consider bus as "moving" (5 km/h)
+  const MIN_MOVING_SPEED = 5;
+  const isBusMoving = busLiveData && busLiveData.speed >= MIN_MOVING_SPEED;
+
   const etaMinutes =
-    distanceKm !== null && busLiveData?.speed > 0
+    distanceKm !== null && busLiveData?.speed >= MIN_MOVING_SPEED && !isDataDelayed
       ? Math.max(1, Math.round((distanceKm / busLiveData.speed) * 60 - 2.5))
       : null;
+
+  const etaStatus = () => {
+    if (isDataDelayed) return "No recent data";
+    if (busLiveData && busLiveData.speed < MIN_MOVING_SPEED) return "Bus stopped";
+    return null;
+  };
 
   return (
     <main className="busmap-main">
@@ -247,7 +257,7 @@ function BusMapContent() {
               <div className="busmap-eta-display">
                 <p className="busmap-eta-label">ETA</p>
                 <p className="busmap-eta-value">
-                  {etaMinutes !== null ? Math.max(1, Math.round(etaMinutes)) : "--"} mins
+                  {etaMinutes !== null ? `${Math.max(1, Math.round(etaMinutes))} mins` : etaStatus() || "--"}
                 </p>
               </div>
             )}
