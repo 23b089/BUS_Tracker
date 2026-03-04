@@ -7,6 +7,9 @@ import { useSearchParams } from "next/navigation";
 import { onValue, ref } from "firebase/database";
 import { db, hasFirebaseConfig } from "@/lib/firebase";
 
+// Prevent static generation - this page requires client-side rendering
+export const dynamic = 'force-dynamic';
+
 const BusLiveMap = dynamic(() => import("@/components/BusLiveMap"), {
   ssr: false,
   loading: () => <p className="busmap-loading">Loading map...</p>,

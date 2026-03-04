@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+// Prevent static generation - this page uses search params
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
