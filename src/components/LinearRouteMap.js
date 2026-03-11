@@ -122,7 +122,7 @@ export default function LinearRouteMap({ busPosition, routeStops, selectedStop }
           {busPositionOnRoute && !busPositionOnRoute.isOffRoute && (
             <div 
               className="route-progress" 
-              style={{ width: `${busPositionOnRoute.percentage}%` }}
+              style={{ height: `${busPositionOnRoute.percentage}%` }}
             />
           )}
         </div>
@@ -140,7 +140,7 @@ export default function LinearRouteMap({ busPosition, routeStops, selectedStop }
               <div
                 key={stop.name}
                 className={`stop-marker ${isSelected ? 'selected' : ''}`}
-                style={{ left: `${stopPercentage}%` }}
+                style={{ top: `${stopPercentage}%` }}
               >
                 <div className="stop-dot" />
                 <div className="stop-label">{stop.name}</div>
@@ -152,7 +152,7 @@ export default function LinearRouteMap({ busPosition, routeStops, selectedStop }
           {busPositionOnRoute && !busPositionOnRoute.isOffRoute && (
             <div
               className="bus-marker-linear"
-              style={{ left: `${busPositionOnRoute.percentage}%` }}
+              style={{ top: `${busPositionOnRoute.percentage}%` }}
             >
               <div className="bus-icon-linear">🚌</div>
               <div className="bus-pulse" />

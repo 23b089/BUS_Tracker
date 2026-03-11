@@ -233,31 +233,49 @@ function HomeContent() {
           <section className="contribution-wrapper">
             <div className="contribution-section">
               <h2 className="contribution-title">Project Contributions</h2>
-              <div className="guide">
-                <img src="./sajith.jpeg"/>
-                <h3>Dr. Sajith . K</h3>
-                <h4>Project Guide</h4>
-                <h5>(Professor, Department of Electronics and Communication Engineering, GCEK)</h5>
+              <div className="guides-row">
+                <div className="guide">
+                  <img src="./sajith.jpeg"/>
+                  <h3>Dr. Sajith . K</h3>
+                  <h4>Project Guide</h4>
+                  <h5>(Professor, Department of Electronics and Communication Engineering, GCEK)</h5>
+                </div>
+                <div className="guide">
+                  <img src="./jaijohn.jpg"/>
+                  <h3>Dr. Jai John</h3>
+                  <h4>Technical Advisor</h4>
+                  <h5>(Professor, Department of Electronics and Communication Engineering, GCEK)</h5>
+                </div>
               </div>
+
               <div className="Students">
                 <div>
                   <img src="./abhaya.jpeg"/>
                   <h3>Abhaya Govind</h3>
+                  <h4>Semester 6</h4>
+                  <h5>(Department of Electronics and Communication Engineering, GCEK)</h5>
                 </div>
 
                 <div>
                   <img src="./adithyan.jpeg" alt="Adithyan M E"/>
                   <h3>Adithyan M E</h3>
+                  <h4>Semester 6</h4>
+                  <h5>(Department of Electronics and Communication Engineering, GCEK)</h5>
                 </div>
 
                 <div>
-              <img src="./nandana.jpeg"/>
-              <h3>Nandana R</h3>
-                 </div>
+                  <img src="./nandana.jpeg"/>
+                  <h3>Nandana R</h3>
+                  <h4>Semester 6</h4>
+                  <h5>(Department of Electronics and Communication Engineering, GCEK)</h5>
+                    
+                </div>
 
             <div>
-              <img />
+              <img src="./sreehari.jpg"/>
               <h3>Sreehari K B</h3>
+              <h4>Semester 6</h4>
+              <h5>(Department of Electronics and Communication Engineering, GCEK)</h5>
             </div>
   
             

@@ -76,6 +76,8 @@ const ROUTE_LABEL = {
 };
 
 const FRESHNESS_THRESHOLD_MS = 60000; // 60 seconds - GPS updates may not be instant
+const MORNING_START_HOUR = 4;
+const EVENING_REVERSE_HOUR = 14;
 
 function haversineDistanceKm(origin, destination) {
   const toRadians = (deg) => (deg * Math.PI) / 180;
@@ -133,11 +135,25 @@ function normalizeBusPayload(payload) {
   };
 }
 
+function getDirectionalRoute(routeStops, hour24) {
+  if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
+
+  // Morning/daytime: origin -> college. Evening/night: reverse direction.
+  const isEveningOrNight = hour24 >= EVENING_REVERSE_HOUR || hour24 < MORNING_START_HOUR;
+  return isEveningOrNight ? [...routeStops].reverse() : routeStops;
+}
+
 function BusMapContent() {
   const searchParams = useSearchParams();
   const busNumber = searchParams.get("bus") || "1";
-  const selectedRouteKey = BUS_ROUTE_KEY[Number(busNumber)] || "kannurViaTaliparamba";
-  const currentRouteStops = ROUTE_STOPS[selectedRouteKey] || ROUTE_STOPS["kannurViaTaliparamba"] || [];
+  const selectedRouteKey = BUS_ROUTE_KEY[Number(busNumber)] || "kannurViaValapattanam";
+  const baseRouteStops = ROUTE_STOPS[selectedRouteKey] || ROUTE_STOPS["kannurViaValapattanam"] || [];
+  const currentHour = new Date().getHours();
+  const currentRouteStops = useMemo(
+    () => getDirectionalRoute(baseRouteStops, currentHour),
+    [baseRouteStops, currentHour]
+  );
+  const isReverseDirection = currentHour >= EVENING_REVERSE_HOUR || currentHour < MORNING_START_HOUR;
 
   const [selectedLocationName, setSelectedLocationName] = useState("");
   const [busLiveData, setBusLiveData] = useState(null);
@@ -234,7 +250,7 @@ function BusMapContent() {
           <div>
             <h2 className="busmap-title">Bus {busNumber} Live Map</h2>
             <p className="busmap-subtitle">
-              Realtime OpenStreetMap tracking with Firebase updates • Route: {ROUTE_LABEL[selectedRouteKey]}
+              Realtime OpenStreetMap tracking with Firebase updates • Route: {ROUTE_LABEL[selectedRouteKey]} ({isReverseDirection ? "College to Places" : "Places to College"})
             </p>
           </div>
           <Link href="/?flow=gcek" className="track-btn">
@@ -262,6 +278,7 @@ function BusMapContent() {
                 ))}
               </select>
             </div>
+
             {shouldShowEta && (
               <div className="busmap-eta-display">
                 <p className="busmap-eta-value">
