@@ -20,6 +20,14 @@ function haversineDistanceKm(origin, destination) {
 }
 
 export default function LinearRouteMap({ busPosition, routeStops, selectedStop }) {
+  const routeContainerHeight = useMemo(() => {
+    if (!routeStops || routeStops.length < 2) return 520;
+
+    // Keep enough vertical spacing so stop labels do not overlap.
+    const requiredHeight = (routeStops.length - 1) * 40 + 64;
+    return Math.max(520, requiredHeight);
+  }, [routeStops]);
+
   const busPositionOnRoute = useMemo(() => {
     if (!busPosition || !routeStops || routeStops.length < 2) return null;
 
@@ -115,7 +123,7 @@ export default function LinearRouteMap({ busPosition, routeStops, selectedStop }
         <div className="route-percentage">{Math.round(busPositionOnRoute.percentage)}% Complete</div>
       </div>
       
-      <div className="linear-route-container">
+      <div className="linear-route-container" style={{ height: `${routeContainerHeight}px` }}>
         {/* Route Line */}
         <div className="route-line">
           {/* Progress indicator */}

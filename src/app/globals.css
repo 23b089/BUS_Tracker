@@ -967,7 +967,8 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 26px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 6px;
   background: #e5e7eb;
   border-radius: 10px;
@@ -992,12 +993,12 @@ body {
 
 .stop-marker {
   position: absolute;
-  left: 26px;
+  left: 50%;
   transform: translate(-50%, -50%);
+  width: 16px;
   display: flex;
-  flex-direction: row;
+  justify-content: center;
   align-items: center;
-  gap: 0.6rem;
   z-index: 10;
 }
 
@@ -1025,11 +1026,16 @@ body {
 }
 
 .stop-label {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 0.6rem);
+  transform: translateY(-50%);
   margin-top: 0;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--gray-700);
-  white-space: normal;
+  white-space: nowrap;
+  line-height: 1.1;
   text-align: left;
   max-width: 220px;
   overflow: hidden;
@@ -1042,7 +1048,7 @@ body {
 
 .bus-marker-linear {
   position: absolute;
-  left: 26px;
+  left: 50%;
   transform: translate(-50%, -50%);
   z-index: 100;
   display: flex;
@@ -1120,8 +1126,8 @@ body {
     font-size: 0.7rem;
     font-weight: 600;
     max-width: 170px;
-    white-space: normal;
-    line-height: 1.2;
+    white-space: nowrap;
+    line-height: 1.1;
     word-break: break-word;
     padding: 0.3rem 0.5rem;
     background: rgba(255, 255, 255, 0.95);
@@ -1148,7 +1154,7 @@ body {
   .route-line,
   .stop-marker,
   .bus-marker-linear {
-    left: 20px;
+    left: 50%;
   }
 }
 
