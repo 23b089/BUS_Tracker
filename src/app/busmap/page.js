@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import dynamicImport from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -78,6 +78,11 @@ const ROUTE_LABEL = {
 const FRESHNESS_THRESHOLD_MS = 60000; // 60 seconds - GPS updates may not be instant
 const MORNING_START_HOUR = 4;
 const EVENING_REVERSE_HOUR = 14;
+const MIN_MOVING_SPEED_KMH = 5;
+const OFF_ROUTE_THRESHOLD_KM = 0.5;
+const ARRIVED_DISTANCE_THRESHOLD_KM = 0.12;
+const MIN_MOVEMENT_FOR_DERIVED_SPEED_KM = 0.01;
+const MAX_REASONABLE_SPEED_KMH = 120;
 
 function haversineDistanceKm(origin, destination) {
   const toRadians = (deg) => (deg * Math.PI) / 180;
@@ -105,6 +110,35 @@ function normalizeTimestamp(rawTimestamp) {
   return numericTime < 1e12 ? numericTime * 1000 : numericTime;
 }
 
+function normalizeSpeedKmh(payload) {
+  const speedMps = payload.speedMps ?? payload.speedMs ?? payload.velocityMps ?? payload.velocityMs;
+  if (speedMps !== undefined && speedMps !== null) {
+    const parsedSpeedMps = Number(speedMps);
+    return Number.isNaN(parsedSpeedMps) ? 0 : parsedSpeedMps * 3.6;
+  }
+
+  const speedMph = payload.speedMph ?? payload.velocityMph;
+  if (speedMph !== undefined && speedMph !== null) {
+    const parsedSpeedMph = Number(speedMph);
+    return Number.isNaN(parsedSpeedMph) ? 0 : parsedSpeedMph * 1.60934;
+  }
+
+  const rawSpeed = payload.speed ?? payload.speedKmh ?? payload.velocity ?? 0;
+  const parsedRawSpeed = Number(rawSpeed);
+  if (Number.isNaN(parsedRawSpeed)) return 0;
+
+  const speedUnit = String(payload.speedUnit ?? payload.speedUnits ?? payload.unit ?? "").toLowerCase();
+  if (speedUnit.includes("m/s") || speedUnit.includes("meter/second")) {
+    return parsedRawSpeed * 3.6;
+  }
+
+  if (speedUnit.includes("mph") || speedUnit.includes("mile/hour")) {
+    return parsedRawSpeed * 1.60934;
+  }
+
+  return parsedRawSpeed;
+}
+
 function normalizeBusPayload(payload) {
   if (!payload || typeof payload !== "object") {
     return null;
@@ -114,7 +148,7 @@ function normalizeBusPayload(payload) {
     payload.latitude ?? payload.lat ?? payload.location?.latitude ?? payload.location?.lat;
   const longitude =
     payload.longitude ?? payload.lng ?? payload.lon ?? payload.location?.longitude ?? payload.location?.lng;
-  const speed = payload.speed ?? payload.speedKmh ?? payload.velocity ?? 0;
+  const speed = normalizeSpeedKmh(payload);
   const timestamp = normalizeTimestamp(
     payload.timestamp ?? payload.updatedAt ?? payload.serverTimestamp ?? payload.time
   );
@@ -132,6 +166,64 @@ function normalizeBusPayload(payload) {
     lng: parsedLongitude,
     speed: Number.isNaN(parsedSpeed) ? 0 : parsedSpeed,
     timestamp,
+  };
+}
+
+function buildRouteMetrics(routeStops) {
+  if (!Array.isArray(routeStops) || routeStops.length < 2) {
+    return null;
+  }
+
+  const segmentDistancesKm = [];
+  const cumulativeDistancesKm = [0];
+
+  for (let index = 0; index < routeStops.length - 1; index += 1) {
+    const segmentDistanceKm = haversineDistanceKm(routeStops[index], routeStops[index + 1]);
+    segmentDistancesKm.push(segmentDistanceKm);
+    cumulativeDistancesKm.push(cumulativeDistancesKm[index] + segmentDistanceKm);
+  }
+
+  return {
+    segmentDistancesKm,
+    cumulativeDistancesKm,
+  };
+}
+
+function getRouteProgress(point, routeStops, routeMetrics) {
+  if (!point || !routeMetrics || !Array.isArray(routeStops) || routeStops.length < 2) {
+    return null;
+  }
+
+  let minDistanceFromRouteKm = Infinity;
+  let projectedProgressKm = 0;
+
+  for (let index = 0; index < routeStops.length - 1; index += 1) {
+    const segmentLengthKm = routeMetrics.segmentDistancesKm[index];
+    if (!Number.isFinite(segmentLengthKm) || segmentLengthKm <= 0) continue;
+
+    const distToStartKm = haversineDistanceKm(point, routeStops[index]);
+    const distToEndKm = haversineDistanceKm(point, routeStops[index + 1]);
+
+    const projectedAlongSegmentRawKm =
+      (distToStartKm ** 2 + segmentLengthKm ** 2 - distToEndKm ** 2) / (2 * segmentLengthKm);
+    const projectedAlongSegmentKm = Math.min(
+      segmentLengthKm,
+      Math.max(0, projectedAlongSegmentRawKm)
+    );
+
+    const distanceFromSegmentKm = Math.sqrt(
+      Math.max(0, distToStartKm ** 2 - projectedAlongSegmentKm ** 2)
+    );
+
+    if (distanceFromSegmentKm < minDistanceFromRouteKm) {
+      minDistanceFromRouteKm = distanceFromSegmentKm;
+      projectedProgressKm = routeMetrics.cumulativeDistancesKm[index] + projectedAlongSegmentKm;
+    }
+  }
+
+  return {
+    progressKm: projectedProgressKm,
+    distanceFromRouteKm: minDistanceFromRouteKm,
   };
 }
 
@@ -159,6 +251,7 @@ function BusMapContent() {
   const [busLiveData, setBusLiveData] = useState(null);
   const [uiError, setUiError] = useState("");
   const [nowTime, setNowTime] = useState(Date.now());
+  const lastBusSampleRef = useRef(null);
 
   const selectedLocation = useMemo(
     () =>
@@ -167,6 +260,18 @@ function BusMapContent() {
         : null,
     [currentRouteStops, selectedLocationName]
   );
+
+  const selectedStopIndex = useMemo(
+    () => (selectedLocationName ? currentRouteStops.findIndex((stop) => stop.name === selectedLocationName) : -1),
+    [currentRouteStops, selectedLocationName]
+  );
+
+  const routeMetrics = useMemo(() => buildRouteMetrics(currentRouteStops), [currentRouteStops]);
+
+  const selectedStopProgressKm =
+    selectedStopIndex >= 0 && routeMetrics
+      ? routeMetrics.cumulativeDistancesKm[selectedStopIndex]
+      : null;
 
   useEffect(() => {
     setSelectedLocationName("");
@@ -202,8 +307,37 @@ function BusMapContent() {
           return;
         }
 
+        const previousSample = lastBusSampleRef.current;
+        let derivedSpeedKmh = null;
+
+        if (previousSample && normalizedData.timestamp > previousSample.timestamp) {
+          const elapsedHours = (normalizedData.timestamp - previousSample.timestamp) / (60 * 60 * 1000);
+          if (elapsedHours > 0) {
+            const movedDistanceKm = haversineDistanceKm(previousSample, normalizedData);
+            if (movedDistanceKm >= MIN_MOVEMENT_FOR_DERIVED_SPEED_KM) {
+              const computedSpeedKmh = movedDistanceKm / elapsedHours;
+              if (
+                Number.isFinite(computedSpeedKmh) &&
+                computedSpeedKmh > 0 &&
+                computedSpeedKmh <= MAX_REASONABLE_SPEED_KMH
+              ) {
+                derivedSpeedKmh = computedSpeedKmh;
+              }
+            }
+          }
+        }
+
+        lastBusSampleRef.current = {
+          lat: normalizedData.lat,
+          lng: normalizedData.lng,
+          timestamp: normalizedData.timestamp,
+        };
+
         setUiError("");
-        setBusLiveData(normalizedData);
+        setBusLiveData({
+          ...normalizedData,
+          derivedSpeedKmh,
+        });
       },
       () => {
         setUiError("Unable to read live bus data from Firebase.");
@@ -215,17 +349,43 @@ function BusMapContent() {
 
   const isDataDelayed = busLiveData ? nowTime - busLiveData.timestamp > FRESHNESS_THRESHOLD_MS : false;
 
-  const distanceKm = busLiveData && selectedLocation
-    ? haversineDistanceKm({ lat: busLiveData.lat, lng: busLiveData.lng }, selectedLocation)
-    : null;
+  const busRouteProgress = useMemo(
+    () =>
+      busLiveData && routeMetrics
+        ? getRouteProgress({ lat: busLiveData.lat, lng: busLiveData.lng }, currentRouteStops, routeMetrics)
+        : null,
+    [busLiveData, currentRouteStops, routeMetrics]
+  );
 
-  // Minimum speed threshold to consider bus as "moving" (5 km/h)
-  const MIN_MOVING_SPEED = 5;
-  const isBusMoving = busLiveData && busLiveData.speed >= MIN_MOVING_SPEED;
+  const remainingRouteDistanceKm =
+    busRouteProgress && selectedStopProgressKm !== null
+      ? selectedStopProgressKm - busRouteProgress.progressKm
+      : null;
+
+  const isOffRoute = busRouteProgress
+    ? busRouteProgress.distanceFromRouteKm > OFF_ROUTE_THRESHOLD_KM
+    : false;
+
+  const isArrivingNow =
+    remainingRouteDistanceKm !== null &&
+    Math.abs(remainingRouteDistanceKm) <= ARRIVED_DISTANCE_THRESHOLD_KM;
+
+  const hasPassedStop =
+    remainingRouteDistanceKm !== null &&
+    remainingRouteDistanceKm < -ARRIVED_DISTANCE_THRESHOLD_KM;
+
+  const payloadSpeedKmh = busLiveData?.speed ?? 0;
+  const fallbackSpeedKmh = busLiveData?.derivedSpeedKmh ?? 0;
+  const effectiveSpeedKmh = payloadSpeedKmh >= MIN_MOVING_SPEED_KMH ? payloadSpeedKmh : fallbackSpeedKmh;
+  const isBusMoving = effectiveSpeedKmh >= MIN_MOVING_SPEED_KMH;
 
   const etaMinutes =
-    distanceKm !== null && busLiveData?.speed >= MIN_MOVING_SPEED && !isDataDelayed
-      ? Math.max(1, Math.round((distanceKm / busLiveData.speed) * 60 - 2.5))
+    remainingRouteDistanceKm !== null &&
+    remainingRouteDistanceKm > ARRIVED_DISTANCE_THRESHOLD_KM &&
+    effectiveSpeedKmh >= MIN_MOVING_SPEED_KMH &&
+    !isDataDelayed &&
+    !isOffRoute
+      ? Math.max(1, Math.ceil((remainingRouteDistanceKm / effectiveSpeedKmh) * 60))
       : null;
 
   const arrivalTime = etaMinutes !== null 
@@ -239,7 +399,10 @@ function BusMapContent() {
 
   const etaStatus = () => {
     if (isDataDelayed) return "No recent data";
-    if (busLiveData && busLiveData.speed < MIN_MOVING_SPEED) return "Bus stopped";
+    if (isOffRoute) return "Bus is off route";
+    if (hasPassedStop) return "Bus already passed this stop";
+    if (isArrivingNow) return "Bus arriving now";
+    if (busLiveData && !isBusMoving) return "Bus stopped";
     return null;
   };
 
@@ -283,7 +446,7 @@ function BusMapContent() {
               <div className="busmap-eta-display">
                 <p className="busmap-eta-value">
                   {etaMinutes !== null 
-                    ? `The bus will arrive in ${Math.max(1, Math.round(etaMinutes))} mins` 
+                    ? `The bus will arrive in ${etaMinutes} mins${arrivalTime ? ` (around ${arrivalTime})` : ""}`
                     : etaStatus() || "--"}
                 </p>
               </div>
