@@ -84,6 +84,31 @@ const ARRIVED_DISTANCE_THRESHOLD_KM = 0.12;
 const MIN_MOVEMENT_FOR_DERIVED_SPEED_KM = 0.01;
 const MAX_REASONABLE_SPEED_KMH = 120;
 
+function parseNumberish(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return null;
+
+    const directNumber = Number(trimmedValue);
+    if (!Number.isNaN(directNumber)) {
+      return directNumber;
+    }
+
+    const match = trimmedValue.match(/-?\d+(?:\.\d+)?/);
+    if (match) {
+      const matchedNumber = Number(match[0]);
+      return Number.isNaN(matchedNumber) ? null : matchedNumber;
+    }
+  }
+
+  return null;
+}
+
 function haversineDistanceKm(origin, destination) {
   const toRadians = (deg) => (deg * Math.PI) / 180;
   const earthRadiusKm = 6371;
@@ -102,38 +127,75 @@ function haversineDistanceKm(origin, destination) {
 }
 
 function normalizeTimestamp(rawTimestamp) {
-  if (!rawTimestamp) return Date.now();
+  if (rawTimestamp === undefined || rawTimestamp === null || rawTimestamp === "") return Date.now();
+
+  if (rawTimestamp instanceof Date) {
+    const timestampMs = rawTimestamp.getTime();
+    return Number.isNaN(timestampMs) ? Date.now() : timestampMs;
+  }
+
+  if (typeof rawTimestamp === "string") {
+    const trimmedTimestamp = rawTimestamp.trim();
+    if (!trimmedTimestamp) return Date.now();
+
+    // Only treat as numeric when the whole string is numeric.
+    if (/^[+-]?\d+(?:\.\d+)?$/.test(trimmedTimestamp)) {
+      const numericFromString = Number(trimmedTimestamp);
+      if (!Number.isNaN(numericFromString)) {
+        return numericFromString < 1e12 ? numericFromString * 1000 : numericFromString;
+      }
+    }
+
+    const parsedDateTime = Date.parse(trimmedTimestamp);
+    if (!Number.isNaN(parsedDateTime)) return parsedDateTime;
+
+    return Date.now();
+  }
 
   const numericTime = Number(rawTimestamp);
-  if (Number.isNaN(numericTime)) return Date.now();
+  if (!Number.isNaN(numericTime)) {
+    return numericTime < 1e12 ? numericTime * 1000 : numericTime;
+  }
 
-  return numericTime < 1e12 ? numericTime * 1000 : numericTime;
+  return Date.now();
 }
 
 function normalizeSpeedKmh(payload) {
   const speedMps = payload.speedMps ?? payload.speedMs ?? payload.velocityMps ?? payload.velocityMs;
   if (speedMps !== undefined && speedMps !== null) {
-    const parsedSpeedMps = Number(speedMps);
-    return Number.isNaN(parsedSpeedMps) ? 0 : parsedSpeedMps * 3.6;
+    const parsedSpeedMps = parseNumberish(speedMps);
+    return parsedSpeedMps === null ? 0 : parsedSpeedMps * 3.6;
   }
 
   const speedMph = payload.speedMph ?? payload.velocityMph;
   if (speedMph !== undefined && speedMph !== null) {
-    const parsedSpeedMph = Number(speedMph);
-    return Number.isNaN(parsedSpeedMph) ? 0 : parsedSpeedMph * 1.60934;
+    const parsedSpeedMph = parseNumberish(speedMph);
+    return parsedSpeedMph === null ? 0 : parsedSpeedMph * 1.60934;
   }
 
-  const rawSpeed = payload.speed ?? payload.speedKmh ?? payload.velocity ?? 0;
-  const parsedRawSpeed = Number(rawSpeed);
-  if (Number.isNaN(parsedRawSpeed)) return 0;
+  const rawSpeed =
+    payload.speed ??
+    payload.speedKmh ??
+    payload.velocity ??
+    payload.location?.speed ??
+    payload.coords?.speed ??
+    0;
+  const parsedRawSpeed = parseNumberish(rawSpeed);
+  if (parsedRawSpeed === null) return 0;
 
-  const speedUnit = String(payload.speedUnit ?? payload.speedUnits ?? payload.unit ?? "").toLowerCase();
+  const speedUnit = String(
+    payload.speedUnit ?? payload.speedUnits ?? payload.unit ?? payload.location?.speedUnit ?? rawSpeed ?? ""
+  ).toLowerCase();
   if (speedUnit.includes("m/s") || speedUnit.includes("meter/second")) {
     return parsedRawSpeed * 3.6;
   }
 
   if (speedUnit.includes("mph") || speedUnit.includes("mile/hour")) {
     return parsedRawSpeed * 1.60934;
+  }
+
+  if (speedUnit.includes("knot") || speedUnit.includes("kt")) {
+    return parsedRawSpeed * 1.852;
   }
 
   return parsedRawSpeed;
@@ -145,26 +207,38 @@ function normalizeBusPayload(payload) {
   }
 
   const latitude =
-    payload.latitude ?? payload.lat ?? payload.location?.latitude ?? payload.location?.lat;
+    payload.latitude ??
+    payload.lat ??
+    payload.location?.latitude ??
+    payload.location?.lat ??
+    payload.coords?.latitude ??
+    payload.coords?.lat;
   const longitude =
-    payload.longitude ?? payload.lng ?? payload.lon ?? payload.location?.longitude ?? payload.location?.lng;
+    payload.longitude ??
+    payload.lng ??
+    payload.lon ??
+    payload.location?.longitude ??
+    payload.location?.lng ??
+    payload.coords?.longitude ??
+    payload.coords?.lng ??
+    payload.coords?.lon;
   const speed = normalizeSpeedKmh(payload);
   const timestamp = normalizeTimestamp(
-    payload.timestamp ?? payload.updatedAt ?? payload.serverTimestamp ?? payload.time
+    payload.timestamp ?? payload.updatedAt ?? payload.serverTimestamp ?? payload.time ?? payload.createdAt
   );
 
-  const parsedLatitude = Number(latitude);
-  const parsedLongitude = Number(longitude);
-  const parsedSpeed = Number(speed);
+  const parsedLatitude = parseNumberish(latitude);
+  const parsedLongitude = parseNumberish(longitude);
+  const parsedSpeed = parseNumberish(speed);
 
-  if (Number.isNaN(parsedLatitude) || Number.isNaN(parsedLongitude)) {
+  if (parsedLatitude === null || parsedLongitude === null) {
     return null;
   }
 
   return {
     lat: parsedLatitude,
     lng: parsedLongitude,
-    speed: Number.isNaN(parsedSpeed) ? 0 : parsedSpeed,
+    speed: parsedSpeed === null ? 0 : parsedSpeed,
     timestamp,
   };
 }
@@ -299,6 +373,7 @@ function BusMapContent() {
     const unsubscribe = onValue(
       busRef,
       (snapshot) => {
+        const receivedAt = Date.now();
         const payload = snapshot.val();
         const normalizedData = normalizeBusPayload(payload);
 
@@ -337,6 +412,7 @@ function BusMapContent() {
         setBusLiveData({
           ...normalizedData,
           derivedSpeedKmh,
+          receivedAt,
         });
       },
       () => {
@@ -347,7 +423,10 @@ function BusMapContent() {
     return () => unsubscribe();
   }, [busNumber]);
 
-  const isDataDelayed = busLiveData ? nowTime - busLiveData.timestamp > FRESHNESS_THRESHOLD_MS : false;
+  const freshestBusTimestamp = busLiveData
+    ? Math.max(busLiveData.timestamp ?? 0, busLiveData.receivedAt ?? 0)
+    : 0;
+  const isDataDelayed = busLiveData ? nowTime - freshestBusTimestamp > FRESHNESS_THRESHOLD_MS : false;
 
   const busRouteProgress = useMemo(
     () =>
@@ -362,17 +441,28 @@ function BusMapContent() {
       ? selectedStopProgressKm - busRouteProgress.progressKm
       : null;
 
+  const directDistanceToStopKm =
+    busLiveData && selectedLocation
+      ? haversineDistanceKm(
+          { lat: busLiveData.lat, lng: busLiveData.lng },
+          { lat: selectedLocation.lat, lng: selectedLocation.lng }
+        )
+      : null;
+
   const isOffRoute = busRouteProgress
     ? busRouteProgress.distanceFromRouteKm > OFF_ROUTE_THRESHOLD_KM
     : false;
 
+  const canUseRouteDistance = remainingRouteDistanceKm !== null && !isOffRoute;
+  const etaDistanceKm = canUseRouteDistance ? remainingRouteDistanceKm : directDistanceToStopKm;
+
   const isArrivingNow =
-    remainingRouteDistanceKm !== null &&
-    Math.abs(remainingRouteDistanceKm) <= ARRIVED_DISTANCE_THRESHOLD_KM;
+    canUseRouteDistance
+      ? Math.abs(remainingRouteDistanceKm) <= ARRIVED_DISTANCE_THRESHOLD_KM
+      : directDistanceToStopKm !== null && directDistanceToStopKm <= ARRIVED_DISTANCE_THRESHOLD_KM;
 
   const hasPassedStop =
-    remainingRouteDistanceKm !== null &&
-    remainingRouteDistanceKm < -ARRIVED_DISTANCE_THRESHOLD_KM;
+    canUseRouteDistance && remainingRouteDistanceKm < -ARRIVED_DISTANCE_THRESHOLD_KM;
 
   const payloadSpeedKmh = busLiveData?.speed ?? 0;
   const fallbackSpeedKmh = busLiveData?.derivedSpeedKmh ?? 0;
@@ -380,12 +470,11 @@ function BusMapContent() {
   const isBusMoving = effectiveSpeedKmh >= MIN_MOVING_SPEED_KMH;
 
   const etaMinutes =
-    remainingRouteDistanceKm !== null &&
-    remainingRouteDistanceKm > ARRIVED_DISTANCE_THRESHOLD_KM &&
+    etaDistanceKm !== null &&
+    etaDistanceKm > ARRIVED_DISTANCE_THRESHOLD_KM &&
     effectiveSpeedKmh >= MIN_MOVING_SPEED_KMH &&
-    !isDataDelayed &&
-    !isOffRoute
-      ? Math.max(1, Math.ceil((remainingRouteDistanceKm / effectiveSpeedKmh) * 60))
+    !isDataDelayed
+      ? Math.max(1, Math.ceil((etaDistanceKm / effectiveSpeedKmh) * 60))
       : null;
 
   const arrivalTime = etaMinutes !== null 
@@ -399,10 +488,10 @@ function BusMapContent() {
 
   const etaStatus = () => {
     if (isDataDelayed) return "No recent data";
-    if (isOffRoute) return "Bus is off route";
     if (hasPassedStop) return "Bus already passed this stop";
     if (isArrivingNow) return "Bus arriving now";
     if (busLiveData && !isBusMoving) return "Bus stopped";
+    if (isOffRoute && etaMinutes === null) return "Bus is off route";
     return null;
   };
 
@@ -446,7 +535,7 @@ function BusMapContent() {
               <div className="busmap-eta-display">
                 <p className="busmap-eta-value">
                   {etaMinutes !== null 
-                    ? `The bus will arrive in ${etaMinutes} mins${arrivalTime ? ` (around ${arrivalTime})` : ""}`
+                    ? `The bus will arrive in ${etaMinutes} mins${arrivalTime ? ` (around ${arrivalTime})` : ""}${!canUseRouteDistance && isOffRoute ? " - direct estimate" : ""}`
                     : etaStatus() || "--"}
                 </p>
               </div>
